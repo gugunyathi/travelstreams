@@ -14,12 +14,12 @@
     }
   ],
   "env": {
-    "API_URL": "https://travelstreamz.vercel.app",
+    "API_URL": "https://travelstreamz-app.vercel.app",
     "NODE_ENV": "production"
   },
   "build": {
     "env": {
-      "VITE_API_URL": "https://travelstreamz.vercel.app/api"
+      "VITE_API_URL": "https://travelstreamz-app.vercel.app/api"
     }
   }
 }
