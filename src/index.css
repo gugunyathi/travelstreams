@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 5%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 270 60% 55%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 142 76% 36%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 217 91% 60%;
+
+    --radius: 1rem;
+
+    /* Base Blue Brand Colors */
+    --base-blue: 217 91% 60%;
+    --base-blue-light: 217 91% 70%;
+    --base-blue-dark: 217 91% 50%;
+
+    /* Crypto Accent Colors */
+    --crypto-purple: 270 60% 55%;
+    --crypto-green: 142 76% 36%;
+    --crypto-red: 0 84% 60%;
+    --crypto-yellow: 45 93% 47%;
+
+    /* Gradients */
+    --gradient-base: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(270 60% 55%) 100%);
+    --gradient-viral: linear-gradient(135deg, hsl(45 93% 47%) 0%, hsl(0 84% 60%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(217 91% 60%) 100%);
+
+    /* Shadows */
+    --shadow-glow: 0 0 40px hsl(217 91% 60% / 0.3);
+    --shadow-card: 0 10px 40px hsl(0 0% 0% / 0.5);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Slot Machine Animations */
+@keyframes slide-down-repeat {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down-repeat 0.5s linear infinite;
+}
