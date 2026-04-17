@@ -12,10 +12,11 @@ dist
 dist-ssr
 *.local
 
-# Environment variables
+# Environment variables - never commit secrets or keys
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
+!.env.*.example
 
 # Video processing folders (large files)
 backup_original_videos/
