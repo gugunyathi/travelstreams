@@ -187,8 +187,8 @@ export const SlotMachineViewer = ({ streams, onBack }: SlotMachineViewerProps) =
       {/* Animated Background */}
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4xKSIvPjwvc3ZnPg==')] opacity-20 animate-pulse" />
       
-      {/* Back Button */}
-      {onBack && (
+      {/* Back Button — hidden while Add Funds dialog is open */}
+      {onBack && !showPayDialog && (
         <div className="absolute top-4 left-4 z-[60]">
           <Button
             onClick={onBack}
@@ -450,10 +450,25 @@ export const SlotMachineViewer = ({ streams, onBack }: SlotMachineViewerProps) =
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Funds to Play</DialogTitle>
-            <DialogDescription>
-              Purchase credits to continue playing the slot machine
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full shrink-0"
+                onClick={() => {
+                  window.history.back();
+                  setShowPayDialog(false);
+                }}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <DialogTitle>Add Funds to Play</DialogTitle>
+                <DialogDescription>
+                  Purchase credits to continue playing the slot machine
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           
           <div className="space-y-4">
