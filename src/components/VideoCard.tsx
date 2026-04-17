@@ -1,5 +1,5 @@
 import { VideoContent } from "@/types/video";
-import { TrendingUp, TrendingDown, Users, DollarSign, Flame, Award, Heart, MapPin } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, DollarSign, Flame, Award, Heart, MapPin, Volume2, VolumeX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useRef, useState } from "react";
 import { useDeviceCapabilities } from "@/hooks/useDeviceCapabilities";
@@ -15,6 +15,8 @@ export const VideoCard = ({ video, onVideoEnd, onVideoLoaded, compact = false }:
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [quality, setQuality] = useState<'auto' | 'low'>('auto');
+  const [isMuted, setIsMuted] = useState(false);
+  const [hasAudio, setHasAudio] = useState(true);
   const loadStartTime = useRef<number>(0);
   const deviceInfo = useDeviceCapabilities();
 
@@ -40,21 +42,31 @@ export const VideoCard = ({ video, onVideoEnd, onVideoLoaded, compact = false }:
         videoRef.current.preload = 'auto';
       }
       
+      // Reset mute state per video change
+      setIsMuted(false);
+      setHasAudio(true);
+
       // Load the video
       videoRef.current.load();
       
-      // Attempt to play with proper error handling
+      // Attempt to play with sound; fall back to muted if browser blocks
       const attemptPlay = () => {
-        if (videoRef.current) {
-          const playPromise = videoRef.current.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(err => {
-              // Silently handle autoplay errors - browser policy
-              if (err.name !== 'AbortError') {
-                console.log("Playback issue:", err.name);
+        if (!videoRef.current) return;
+        videoRef.current.muted = false;
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            if (err.name === 'NotAllowedError') {
+              // Browser blocked unmuted autoplay — mute and retry
+              if (videoRef.current) {
+                videoRef.current.muted = true;
+                setIsMuted(true);
+                videoRef.current.play().catch(() => {});
               }
-            });
-          }
+            } else if (err.name !== 'AbortError') {
+              console.log("Playback issue:", err.name);
+            }
+          });
         }
       };
 
@@ -69,7 +81,23 @@ export const VideoCard = ({ video, onVideoEnd, onVideoLoaded, compact = false }:
     setIsLoaded(true);
     const loadTime = performance.now() - loadStartTime.current;
     console.log(`⚡ Video loaded in ${loadTime.toFixed(0)}ms - ${video.location.name}`);
-    
+
+    // Detect if video has an audio track
+    if (videoRef.current) {
+      const el = videoRef.current as HTMLVideoElement & {
+        mozHasAudio?: boolean;
+        audioTracks?: { length: number };
+        webkitAudioDecodedByteCount?: number;
+      };
+      if (el.mozHasAudio !== undefined) {
+        setHasAudio(el.mozHasAudio);
+      } else if (el.audioTracks !== undefined) {
+        setHasAudio(el.audioTracks.length > 0);
+      }
+      // Chrome: webkitAudioDecodedByteCount is only reliable after decoding starts,
+      // so we default hasAudio=true and leave the button visible.
+    }
+
     // Notify parent that video is loaded
     if (onVideoLoaded) {
       onVideoLoaded(video.id);
@@ -88,6 +116,14 @@ export const VideoCard = ({ video, onVideoEnd, onVideoLoaded, compact = false }:
   };
 
   const isPositiveChange = video.token.change24h >= 0;
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      const newMuted = !isMuted;
+      videoRef.current.muted = newMuted;
+      setIsMuted(newMuted);
+    }
+  };
 
   return (
     <div className="absolute inset-0">
@@ -110,7 +146,7 @@ export const VideoCard = ({ video, onVideoEnd, onVideoLoaded, compact = false }:
             isLoaded ? 'opacity-100' : 'opacity-0'
           }`}
           autoPlay
-          muted
+          muted={isMuted}
           playsInline
           preload="auto"
           crossOrigin="anonymous"
@@ -124,6 +160,21 @@ export const VideoCard = ({ video, onVideoEnd, onVideoLoaded, compact = false }:
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80" />
       </div>
+
+      {/* Mute / Unmute button */}
+      {hasAudio && (
+        <button
+          onClick={toggleMute}
+          className="absolute right-3 z-20 flex items-center justify-center w-9 h-9 rounded-full bg-black/60 backdrop-blur-md hover:bg-black/80 transition-colors border border-white/15 shadow-lg"
+          style={{ top: 'calc(50% - 90px)' }}
+          aria-label={isMuted ? 'Unmute' : 'Mute'}
+        >
+          {isMuted
+            ? <VolumeX className="w-4 h-4 text-white/80" />
+            : <Volume2 className="w-4 h-4 text-white" />
+          }
+        </button>
+      )}
 
       {/* Floating location pin blurb */}
       <a

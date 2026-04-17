@@ -57,6 +57,18 @@ export const SlotMachineViewer = ({ streams, onBack }: SlotMachineViewerProps) =
   const { isConnected } = useAccount();
   const { toast } = useToast();
 
+  // Push a history entry when the dialog opens so the browser back button closes it
+  useEffect(() => {
+    if (showPayDialog) {
+      window.history.pushState({ addFundsDialog: true }, '');
+      const handlePop = () => {
+        setShowPayDialog(false);
+      };
+      window.addEventListener('popstate', handlePop, { once: true });
+      return () => window.removeEventListener('popstate', handlePop);
+    }
+  }, [showPayDialog]);
+
   const SPIN_COST = 1.00;
   const SPIN_DURATION = 3000; // 3 seconds
   const SLOT_DELAY = 500; // Delay between each slot stopping
@@ -426,7 +438,16 @@ export const SlotMachineViewer = ({ streams, onBack }: SlotMachineViewerProps) =
       </div>
 
       {/* Add Funds Dialog */}
-      <Dialog open={showPayDialog} onOpenChange={setShowPayDialog}>
+      <Dialog
+        open={showPayDialog}
+        onOpenChange={(open) => {
+          if (!open && showPayDialog) {
+            // Dialog closed by UI (not back button) — pop the history entry we pushed
+            window.history.back();
+          }
+          setShowPayDialog(open);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add Funds to Play</DialogTitle>

@@ -32,3 +32,4 @@ temp_trimmed/
 *.njsproj
 *.sln
 *.sw?
+.vercel
