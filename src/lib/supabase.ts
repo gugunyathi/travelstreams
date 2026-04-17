@@ -1,40 +1,89 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error('Please define VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables inside .env');
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
 }
 
-let cachedClient: SupabaseClient | null = null;
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export function getSupabaseClient(): SupabaseClient {
-  if (cachedClient) {
-    return cachedClient;
-  }
-
-  cachedClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: {
-      persistSession: false, // We don't need auth persistence for this app
-    },
-  });
-
-  return cachedClient;
+// Database row types
+export interface VideoRow {
+  id: string;
+  video_id: string;
+  video_url: string;
+  location_id: string;
+  location_name: string;
+  country: string;
+  lat: number;
+  lng: number;
+  creator_id: string;
+  creator_username: string;
+  creator_avatar: string;
+  creator_xp_points: number;
+  creator_total_earnings: number;
+  thumbnail_url: string | null;
+  duration: number;
+  views: number;
+  likes: number;
+  virality_score: number;
+  token_symbol: string;
+  token_price: number;
+  token_change_24h: number;
+  token_volume: number;
+  token_holders: number;
+  token_market_cap: number;
+  betting_pool: number;
+  paid_to_post: number;
+  categories: string[];
+  stream_tags: string[];
+  xp_earned: number;
+  is_system_video: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
-// For backward compatibility with existing code
-export async function connectToDatabase() {
-  const client = getSupabaseClient();
-  return { client };
+export interface VideoLikeRow {
+  id: string;
+  video_id: string;
+  user_address: string;
+  created_at: string;
 }
 
-export async function getDatabase() {
-  return getSupabaseClient();
+export interface BetRow {
+  id: string;
+  video_id: string;
+  user_address: string;
+  amount: number;
+  prediction: 'viral' | 'winner';
+  status: 'pending' | 'won' | 'lost';
+  tx_hash: string | null;
+  created_at: string;
 }
 
-// Helper function to get the storage client
-export function getStorageClient() {
-  const client = getSupabaseClient();
-  return client.storage;
+export interface VideoSubmissionRow {
+  id: string;
+  embed_url: string;
+  location: string;
+  country: string | null;
+  categories: string[];
+  stream_tags: string[];
+  submitter_address: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  paid_amount: number;
+  tx_hash: string | null;
+  created_at: string;
+}
+
+export interface StreamTagRow {
+  id: string;
+  tag_id: string;
+  name: string;
+  display_name: string;
+  color: string;
+  video_count: number;
+  total_xp: number;
+  created_at: string;
 }

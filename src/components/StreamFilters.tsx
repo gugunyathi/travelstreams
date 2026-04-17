@@ -23,52 +23,84 @@ export const StreamFilters = ({
   onClearFilters,
 }: StreamFiltersProps) => {
   const [showFilters, setShowFilters] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  const closeSearch = () => {
+    setShowSearch(false);
+    setShowFilters(false);
+  };
 
   return (
-    <div className="absolute top-3 sm:top-4 left-0 right-0 z-20 px-3 sm:px-4 space-y-2">
-      {/* Location Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Search location..."
-          value={locationSearch}
-          onChange={(e) => onLocationSearch(e.target.value)}
-          className="pl-10 bg-card/90 backdrop-blur-sm text-sm"
-          onFocus={() => setShowFilters(true)}
-        />
-        {locationSearch && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-            onClick={() => onLocationSearch("")}
+    <div className="absolute top-3 sm:top-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center space-y-2">
+      {/* Search icon / expanded search row */}
+      <div className="flex items-center gap-2">
+        {/* Floating search toggle button */}
+        <button
+          onClick={() => setShowSearch(v => !v)}
+          className={`w-10 h-10 rounded-full backdrop-blur-md border shadow-lg flex items-center justify-center transition-all ${
+            showSearch || locationSearch
+              ? 'bg-white/20 border-white/50 text-white'
+              : 'bg-black/50 border-white/20 text-white hover:bg-black/70'
+          }`}
+          aria-label="Search location"
+        >
+          {showSearch ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
+        </button>
+
+        {/* Expanding search input */}
+        {showSearch && (
+          <div className="relative flex items-center">
+            <Input
+              autoFocus
+              type="text"
+              placeholder="Search location..."
+              value={locationSearch}
+              onChange={(e) => onLocationSearch(e.target.value)}
+              onFocus={() => setShowFilters(true)}
+              className="w-44 sm:w-64 bg-black/70 backdrop-blur-sm border-white/30 text-white placeholder:text-white/50 text-sm pr-8"
+            />
+            {locationSearch && (
+              <button
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
+                onClick={() => onLocationSearch("")}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Active filter count badge */}
+        {!showSearch && (selectedCategories.length > 0 || locationSearch) && (
+          <button
+            onClick={() => setShowSearch(true)}
+            className="bg-primary text-primary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center -ml-3 -mt-4 shadow"
           >
-            <X className="w-4 h-4" />
-          </Button>
+            {selectedCategories.length + (locationSearch ? 1 : 0)}
+          </button>
         )}
       </div>
 
-      {/* Category Filters */}
-      {showFilters && (
-        <div className="bg-card/90 backdrop-blur-sm rounded-lg p-3 space-y-3">
+      {/* Category Filters panel */}
+      {showSearch && showFilters && (
+        <div className="bg-black/80 backdrop-blur-sm rounded-lg p-3 space-y-3 border border-white/20 w-64 sm:w-80">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Filter by Category</span>
+              <span className="text-sm font-medium text-white">Filter by Category</span>
             </div>
             {(selectedCategories.length > 0 || locationSearch) && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onClearFilters}
-                className="h-7 text-xs"
+                className="h-7 text-xs text-white/70 hover:text-white"
               >
                 Clear All
               </Button>
             )}
           </div>
-          
+
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map((category) => (
               <Badge
@@ -88,16 +120,16 @@ export const StreamFilters = ({
           <Button
             variant="outline"
             size="sm"
-            className="w-full"
-            onClick={() => setShowFilters(false)}
+            className="w-full border-white/20 text-white hover:bg-white/10"
+            onClick={closeSearch}
           >
-            Apply Filters
+            Done
           </Button>
         </div>
       )}
 
-      {/* Active Filters Display */}
-      {!showFilters && (selectedCategories.length > 0 || locationSearch) && (
+      {/* Active filter chips (when search closed but filters active) */}
+      {!showSearch && (selectedCategories.length > 0 || locationSearch) && (
         <div className="flex items-center gap-2 flex-wrap">
           {locationSearch && (
             <Badge variant="secondary" className="gap-1">
@@ -108,8 +140,8 @@ export const StreamFilters = ({
           {selectedCategories.map((category) => (
             <Badge key={category} variant="secondary" className="capitalize gap-1">
               {category}
-              <X 
-                className="w-3 h-3 cursor-pointer" 
+              <X
+                className="w-3 h-3 cursor-pointer"
                 onClick={() => onCategoryToggle(category)}
               />
             </Badge>

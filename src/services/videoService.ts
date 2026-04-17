@@ -1,199 +1,107 @@
-import { getSupabaseClient, getStorageClient } from '../lib/supabase';
-import { VideoDocument, VideoResponse } from '../types/database';
+import { supabase } from '@/lib/supabase';
+import { VideoContent } from '@/types/video';
 
-const VIDEOS_TABLE = 'videos';
-const VIDEOS_BUCKET = 'Videos';
+const VIDEOS_COLLECTION = 'videos';
+
+/** Convert a Supabase row to VideoContent */
+function rowToVideoContent(row: Record<string, unknown>): VideoContent {
+  return {
+    id: row.video_id as string,
+    videoUrl: row.video_url as string,
+    location: {
+      id: row.location_id as string,
+      name: row.location_name as string,
+      country: row.country as string,
+      coordinates: { lat: row.lat as number, lng: row.lng as number },
+    },
+    creator: {
+      id: row.creator_id as string,
+      username: row.creator_username as string,
+      avatar: row.creator_avatar as string,
+      xpPoints: row.creator_xp_points as number,
+      totalEarnings: row.creator_total_earnings as number,
+    },
+    thumbnailUrl: (row.thumbnail_url as string | null) ?? '/placeholder.svg',
+    duration: row.duration as number,
+    views: row.views as number,
+    likes: row.likes as number,
+    viralityScore: row.virality_score as number,
+    token: {
+      symbol: row.token_symbol as string,
+      price: row.token_price as number,
+      change24h: row.token_change_24h as number,
+      volume: row.token_volume as number,
+      holders: row.token_holders as number,
+      marketCap: row.token_market_cap as number,
+    },
+    bettingPool: row.betting_pool as number,
+    paidToPost: row.paid_to_post as number,
+    categories: row.categories as VideoContent['categories'],
+    streamTags: row.stream_tags as string[],
+    xpEarned: row.xp_earned as number,
+    createdAt: new Date(row.created_at as string),
+  };
+}
 
 export class VideoService {
-  static async getAllVideos(): Promise<VideoResponse[]> {
-    try {
-      const supabase = getSupabaseClient();
-      const { data: videos, error } = await supabase
-        .from(VIDEOS_TABLE)
-        .select('*')
-        .order('created_at', { ascending: false });
+  static async getAllVideos(): Promise<VideoContent[]> {
+    const { data, error } = await supabase
+      .from(VIDEOS_COLLECTION)
+      .select('*')
+      .order('virality_score', { ascending: false });
 
-      if (error) {
-        throw error;
-      }
-
-      return videos?.map(video => this.transformVideoDocument(video)) || [];
-    } catch (error) {
-      console.error('Error fetching videos from database:', error);
-      throw error;
-    }
+    if (error) throw error;
+    return (data ?? []).map(rowToVideoContent);
   }
 
-  static async getVideosByLocation(locationId: string): Promise<VideoResponse[]> {
-    try {
-      const supabase = getSupabaseClient();
-      const { data: videos, error } = await supabase
-        .from(VIDEOS_TABLE)
-        .select('*')
-        .eq('location_id', locationId)
-        .order('created_at', { ascending: false });
+  static async getVideosByLocation(locationId: string): Promise<VideoContent[]> {
+    const { data, error } = await supabase
+      .from(VIDEOS_COLLECTION)
+      .select('*')
+      .eq('location_id', locationId)
+      .order('virality_score', { ascending: false });
 
-      if (error) {
-        throw error;
-      }
-
-      return videos?.map(video => this.transformVideoDocument(video)) || [];
-    } catch (error) {
-      console.error(`Error fetching videos for location ${locationId}:`, error);
-      throw error;
-    }
+    if (error) throw error;
+    return (data ?? []).map(rowToVideoContent);
   }
 
-  static getVideoStreamUrl(storagePath: string): string {
-    try {
-      const storage = getStorageClient();
-      const { data } = storage.from(VIDEOS_BUCKET).getPublicUrl(storagePath);
-      return data.publicUrl;
-    } catch (error) {
-      console.error('Error getting video stream URL:', error);
-      // Fallback to API endpoint
-      return `/api/videos/stream/${encodeURIComponent(storagePath)}`;
-    }
+  static async getVideosByTag(tag: string): Promise<VideoContent[]> {
+    const { data, error } = await supabase
+      .from(VIDEOS_COLLECTION)
+      .select('*')
+      .contains('stream_tags', [tag])
+      .order('virality_score', { ascending: false });
+
+    if (error) throw error;
+    return (data ?? []).map(rowToVideoContent);
   }
 
-  static async getVideoStream(storagePath: string): Promise<string> {
-    try {
-      const storage = getStorageClient();
-      const { data } = storage.from(VIDEOS_BUCKET).getPublicUrl(storagePath);
-      return data.publicUrl;
-    } catch (error) {
-      console.error('Error getting video stream URL:', error);
-      // Fallback to API endpoint
-      return `/api/videos/stream/${encodeURIComponent(storagePath)}`;
-    }
+  static async getTopVideos(limit = 10): Promise<VideoContent[]> {
+    const { data, error } = await supabase
+      .from(VIDEOS_COLLECTION)
+      .select('*')
+      .order('virality_score', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return (data ?? []).map(rowToVideoContent);
   }
 
-  private static transformVideoDocument(doc: VideoDocument): VideoResponse {
-    return {
-      id: doc.video_id,
-      videoUrl: this.getVideoUrl(doc.storage_path),
-      location: {
-        id: doc.location_id,
-        name: doc.location_name,
-        country: doc.country,
-        coordinates: doc.coordinates
-      },
-      creator: doc.creator,
-      thumbnailUrl: doc.thumbnail_url || '',
-      duration: doc.duration,
-      views: doc.views,
-      likes: doc.likes,
-      viralityScore: doc.virality_score,
-      token: doc.token,
-      bettingPool: doc.betting_pool,
-      paidToPost: doc.paid_to_post,
-      categories: doc.categories,
-      streamTags: doc.stream_tags,
-      xpEarned: doc.xp_earned,
-      createdAt: new Date(doc.created_at),
-      updatedAt: new Date(doc.updated_at)
-    };
+  static async incrementView(videoId: string): Promise<void> {
+    await supabase.rpc('increment_video_views', { p_video_id: videoId });
   }
 
-  private static getVideoUrl(storagePath: string): string {
-    try {
-      const storage = getStorageClient();
-      const { data } = storage.from(VIDEOS_BUCKET).getPublicUrl(storagePath);
-      return data.publicUrl;
-    } catch (error) {
-      console.error('Error getting video URL:', error);
-      return `/api/videos/stream/${encodeURIComponent(storagePath)}`;
-    }
+  static async incrementLike(videoId: string): Promise<void> {
+    await supabase.rpc('increment_video_likes', { p_video_id: videoId });
   }
 
-  static async uploadVideo(
-    filename: string,
-    fileBuffer: Buffer,
-    metadata: Omit<VideoDocument, 'id' | 'filename' | 'storage_path' | 'created_at' | 'updated_at'>
-  ): Promise<string> {
-    try {
-      const supabase = getSupabaseClient();
-      const storage = getStorageClient();
-
-      // Generate unique storage path
-      const timestamp = Date.now();
-      const storagePath = `${metadata.location_id}/${timestamp}_${filename}`;
-
-      // Upload file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await storage
-        .from(VIDEOS_BUCKET)
-        .upload(storagePath, fileBuffer, {
-          contentType: 'video/mp4',
-          upsert: false
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Save video metadata to database
-      const videoDoc: Omit<VideoDocument, 'id' | 'created_at' | 'updated_at'> = {
-        ...metadata,
-        filename,
-        storage_path: storagePath
-      };
-
-      const { data: insertData, error: insertError } = await supabase
-        .from(VIDEOS_TABLE)
-        .insert([videoDoc])
-        .select()
-        .single();
-
-      if (insertError) {
-        // Clean up uploaded file if database insert fails
-        await storage.from(VIDEOS_BUCKET).remove([storagePath]);
-        throw insertError;
-      }
-
-      return insertData.id;
-    } catch (error) {
-      console.error('Error uploading video:', error);
-      throw error;
-    }
+  static async decrementLike(videoId: string): Promise<void> {
+    await supabase.rpc('decrement_video_likes', { p_video_id: videoId });
   }
 
-  static async deleteVideo(videoId: string): Promise<void> {
-    try {
-      const supabase = getSupabaseClient();
-      const storage = getStorageClient();
-
-      // First get the video to find its storage path
-      const { data: video, error: fetchError } = await supabase
-        .from(VIDEOS_TABLE)
-        .select('storage_path')
-        .eq('video_id', videoId)
-        .single();
-
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      // Delete from storage
-      const { error: storageError } = await storage
-        .from(VIDEOS_BUCKET)
-        .remove([video.storage_path]);
-
-      if (storageError) {
-        console.error('Error deleting video from storage:', storageError);
-      }
-
-      // Delete from database
-      const { error: deleteError } = await supabase
-        .from(VIDEOS_TABLE)
-        .delete()
-        .eq('video_id', videoId);
-
-      if (deleteError) {
-        throw deleteError;
-      }
-    } catch (error) {
-      console.error('Error deleting video:', error);
-      throw error;
-    }
+  /** Legacy – videos are now served from /public directly */
+  static getVideoStreamUrl(videoUrl: string): string {
+    return videoUrl;
   }
 }
+

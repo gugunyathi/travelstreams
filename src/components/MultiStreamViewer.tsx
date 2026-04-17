@@ -21,6 +21,12 @@ import { BasePay } from "./BasePay";
 import { useAccount } from "wagmi";
 import { useToast } from "@/hooks/use-toast";
 
+const fmt = (n: number) => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toString();
+};
+
 interface MultiStreamViewerProps {
   availableStreams: Stream[];
   initialMode?: ViewMode;
@@ -82,9 +88,9 @@ export const MultiStreamViewer = ({
       case 'single':
         return 'grid-cols-1';
       case 'split-2':
-        return 'grid-cols-1 sm:grid-cols-2';
+        return 'grid-cols-2';
       case 'split-3':
-        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+        return 'grid-cols-3';
       default:
         return 'grid-cols-1';
     }
@@ -196,7 +202,7 @@ export const MultiStreamViewer = ({
       )}
 
       {/* Stream Grid */}
-      <div className={`grid ${getStreamContainerClass()} h-full gap-0.5 sm:gap-1`}>
+      <div className={`grid ${getStreamContainerClass()} h-full divide-x-2 divide-yellow-400/80`}>
         {activeStreams.map((stream, index) => {
           const state = streamStates.get(stream.id) || { xp: 0, likes: 0 };
           const isLeading = activeStreams.length > 1 && getLeadingStream()?.id === stream.id;
@@ -212,28 +218,25 @@ export const MultiStreamViewer = ({
                 onVideoEnd={handleVideoEnd}
                 autoPlay={true}
                 className="h-full w-full"
+                streamCount={activeStreams.length}
               />
               
-              {/* Stream Stats Overlay for Multi-View */}
+              {/* Compact competition stats bar — bottom of each panel */}
               {activeStreams.length > 1 && (
-                <div className="absolute bottom-16 sm:bottom-24 left-2 right-2 sm:left-4 sm:right-4 z-30 bg-black/80 backdrop-blur-sm rounded-lg p-2 sm:p-3">
-                  <div className="flex items-center justify-between text-white text-xs sm:text-sm">
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400" />
-                      <span className="font-bold">{state.xp} XP</span>
-                    </div>
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
-                      <span>{state.likes.toLocaleString()} likes</span>
-                    </div>
+                <div className="absolute bottom-10 left-1 right-1 z-30 flex items-center justify-between bg-black/75 backdrop-blur-sm rounded-lg px-2 py-1 gap-1">
+                  <div className="flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-yellow-400 flex-shrink-0" />
+                    <span className="text-white font-bold text-[10px]">{fmt(state.xp)} XP</span>
                   </div>
                   {isLeading && (
-                    <div className="mt-1 sm:mt-2 text-center">
-                      <Badge className="bg-yellow-500 text-black font-bold text-xs">
-                        🏆 LEADING
-                      </Badge>
-                    </div>
+                    <Badge className="bg-yellow-500 text-black font-bold text-[9px] px-1.5 py-0 leading-4">
+                      👑 LEAD
+                    </Badge>
                   )}
+                  <div className="flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3 text-green-400 flex-shrink-0" />
+                    <span className="text-white text-[10px]">{fmt(state.likes)}</span>
+                  </div>
                 </div>
               )}
             </div>

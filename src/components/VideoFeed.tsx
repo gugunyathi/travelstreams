@@ -303,8 +303,8 @@ export const VideoFeed = () => {
         </button>
       </div>
 
-      {/* Progress Dots */}
-      <div className="absolute top-14 sm:top-16 md:top-4 left-1/2 -translate-x-1/2 z-20 flex gap-1 sm:gap-1.5 max-w-[90vw] overflow-x-auto scrollbar-hide px-4">
+      {/* Progress Dots — hidden visually, state kept for functionality */}
+      <div className="absolute top-14 sm:top-16 md:top-4 left-1/2 -translate-x-1/2 z-20 flex gap-1 sm:gap-1.5 max-w-[90vw] overflow-x-auto scrollbar-hide px-4 invisible pointer-events-none">
         {filteredVideos.slice(0, 20).map((video, index) => (
           <div
             key={index}

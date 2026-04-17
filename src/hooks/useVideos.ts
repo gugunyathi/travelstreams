@@ -1,39 +1,12 @@
 import { useState, useEffect } from 'react';
 import { VideoContent, VideoCategory } from '@/types/video';
 import { VideoService } from '@/services/videoService';
-import { VideoResponse } from '@/types/database';
 
 // Check if Supabase is configured
 const hasSupabaseConfig = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 console.log('🔧 Supabase configured:', hasSupabaseConfig);
 
-// Helper function to convert VideoResponse to VideoContent
-const transformVideoResponse = (videoResponse: VideoResponse): VideoContent => {
-  // Convert string categories to VideoCategory enum values
-  const validCategories: VideoCategory[] = videoResponse.categories
-    .filter((cat): cat is VideoCategory => 
-      ['safety', 'fun', 'shopping', 'food', 'culture', 'nightlife', 'adventure', 'nature'].includes(cat)
-    );
 
-  return {
-    id: videoResponse.id,
-    location: videoResponse.location,
-    creator: videoResponse.creator,
-    videoUrl: videoResponse.videoUrl,
-    thumbnailUrl: videoResponse.thumbnailUrl,
-    duration: videoResponse.duration,
-    views: videoResponse.views,
-    likes: videoResponse.likes,
-    viralityScore: videoResponse.viralityScore,
-    token: videoResponse.token,
-    bettingPool: videoResponse.bettingPool,
-    createdAt: videoResponse.createdAt,
-    paidToPost: videoResponse.paidToPost,
-    categories: validCategories,
-    streamTags: videoResponse.streamTags,
-    xpEarned: videoResponse.xpEarned,
-  };
-};
 
 export const useVideos = () => {
   const [videos, setVideos] = useState<VideoContent[]>([]);
@@ -53,10 +26,7 @@ export const useVideos = () => {
         }
         
         // Use VideoService to fetch directly from Supabase
-        const videoResponses = await VideoService.getAllVideos();
-        
-        // Transform VideoResponse[] to VideoContent[]
-        const data = videoResponses.map(transformVideoResponse);
+        const data = await VideoService.getAllVideos();
         
         console.log('✅ Successfully fetched data from Supabase');
         console.log('📊 Video count:', data.length);
@@ -123,10 +93,7 @@ export const useVideosByLocation = (locationId: string) => {
         }
         
         // Use VideoService to fetch directly from Supabase
-        const videoResponses = await VideoService.getVideosByLocation(locationId);
-        
-        // Transform VideoResponse[] to VideoContent[]
-        const data = videoResponses.map(transformVideoResponse);
+        const data = await VideoService.getVideosByLocation(locationId);
         
         if (isMounted) {
           setVideos(data);
@@ -162,8 +129,7 @@ export const useVideosByLocation = (locationId: string) => {
 export const videoApi = {
   getAllVideos: async (): Promise<VideoContent[]> => {
     try {
-      const videoResponses = await VideoService.getAllVideos();
-      return videoResponses.map(transformVideoResponse);
+      return await VideoService.getAllVideos();
     } catch (error) {
       console.error('Error fetching all videos:', error);
       throw error;
@@ -172,8 +138,7 @@ export const videoApi = {
   
   getVideosByLocation: async (locationId: string): Promise<VideoContent[]> => {
     try {
-      const videoResponses = await VideoService.getVideosByLocation(locationId);
-      return videoResponses.map(transformVideoResponse);
+      return await VideoService.getVideosByLocation(locationId);
     } catch (error) {
       console.error(`Error fetching videos for location ${locationId}:`, error);
       throw error;

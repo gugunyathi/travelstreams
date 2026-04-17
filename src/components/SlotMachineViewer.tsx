@@ -61,149 +61,109 @@ export const SlotMachineViewer = ({ streams, onBack }: SlotMachineViewerProps) =
   const SPIN_DURATION = 3000; // 3 seconds
   const SLOT_DELAY = 500; // Delay between each slot stopping
 
-  // Get current videos for center alignment
-  const getCenterVideos = (): VideoContent[] => {
-    return slotPositions.map(pos => {
-      const stream = streams[pos.streamIndex];
-      return stream.videos[pos.videoIndex];
-    });
-  };
-
-  // Check for matches in center alignment
-  const checkForMatches = (): WinResult | null => {
-    const centerVideos = getCenterVideos();
-    
-    // Jackpot - All three videos from same creator
+  // Check matches from a given set of videos (avoids stale-closure bug)
+  const checkMatchesFromVideos = (centerVideos: VideoContent[]): WinResult | null => {
+    // Jackpot - all three from same creator
     if (
       centerVideos[0].creator.id === centerVideos[1].creator.id &&
       centerVideos[1].creator.id === centerVideos[2].creator.id
     ) {
-      return {
-        type: 'jackpot',
-        multiplier: 100,
-        payout: SPIN_COST * 100,
-        message: '🎰 JACKPOT! Same Creator Triple Match!'
-      };
+      return { type: 'jackpot', multiplier: 100, payout: SPIN_COST * 100, message: '🎰 JACKPOT! Same Creator Triple Match!' };
     }
-
-    // Location match - All same location
+    // Location triple
     if (
       centerVideos[0].location.name === centerVideos[1].location.name &&
       centerVideos[1].location.name === centerVideos[2].location.name
     ) {
-      return {
-        type: 'location',
-        multiplier: 50,
-        payout: SPIN_COST * 50,
-        message: '🌍 LOCATION TRIPLE! Same Location Match!'
-      };
+      return { type: 'location', multiplier: 50, payout: SPIN_COST * 50, message: '🌍 LOCATION TRIPLE! Same Location Match!' };
     }
-
-    // Tag match - All share same tag
+    // Tag triple
     const commonTag = centerVideos[0].streamTags.find(tag =>
-      centerVideos[1].streamTags.includes(tag) &&
-      centerVideos[2].streamTags.includes(tag)
+      centerVideos[1].streamTags.includes(tag) && centerVideos[2].streamTags.includes(tag)
     );
     if (commonTag) {
-      return {
-        type: 'tag',
-        multiplier: 25,
-        payout: SPIN_COST * 25,
-        message: `🏷️ TAG MATCH! #${commonTag} across all reels!`
-      };
+      return { type: 'tag', multiplier: 25, payout: SPIN_COST * 25, message: `🏷️ TAG MATCH! #${commonTag} across all reels!` };
     }
-
-    // Category match - All share same category
+    // Category triple
     const commonCategory = centerVideos[0].categories.find(cat =>
-      centerVideos[1].categories.includes(cat) &&
-      centerVideos[2].categories.includes(cat)
+      centerVideos[1].categories.includes(cat) && centerVideos[2].categories.includes(cat)
     );
     if (commonCategory) {
-      return {
-        type: 'category',
-        multiplier: 15,
-        payout: SPIN_COST * 15,
-        message: `🎯 CATEGORY MATCH! All ${commonCategory}!`
-      };
+      return { type: 'category', multiplier: 15, payout: SPIN_COST * 15, message: `🎯 CATEGORY MATCH! All ${commonCategory}!` };
     }
-
-    // Two matching creators
+    // Creator pair
     if (
       centerVideos[0].creator.id === centerVideos[1].creator.id ||
       centerVideos[1].creator.id === centerVideos[2].creator.id ||
       centerVideos[0].creator.id === centerVideos[2].creator.id
     ) {
-      return {
-        type: 'creator',
-        multiplier: 5,
-        payout: SPIN_COST * 5,
-        message: '👥 CREATOR PAIR! Two matching creators!'
-      };
+      return { type: 'creator', multiplier: 5, payout: SPIN_COST * 5, message: '👥 CREATOR PAIR! Two matching creators!' };
     }
-
     return null;
   };
 
-  const spinSlots = async () => {
+  // Symbols shown in the reel drum while spinning (collected from all stream videos)
+  const reelSymbols = streams.flatMap(s =>
+    s.videos.slice(0, 6).map(v => ({
+      symbol: v.token.symbol,
+      location: v.location.name,
+      color: s.tag.color || '#6366f1',
+    }))
+  );
+  // Doubled for seamless CSS loop (animation goes 0 → -50%)
+  const reelStrip = [...reelSymbols, ...reelSymbols];
+
+  // Get current center videos
+  const getCenterVideos = (): VideoContent[] =>
+    slotPositions.map(pos => streams[pos.streamIndex].videos[pos.videoIndex]);
+
+  const spinSlots = () => {
+    if (isSpinning) return;
+
     if (balance < SPIN_COST) {
-      toast({
-        title: "Insufficient balance",
-        description: "Add funds to continue playing",
-        variant: "destructive"
-      });
+      toast({ title: "Insufficient balance", description: "Add funds to continue playing", variant: "destructive" });
       setShowPayDialog(true);
       return;
     }
 
-    if (isSpinning) return;
+    // ✅ Compute final positions UPFRONT to avoid stale-closure bugs
+    const finalPositions: SlotPosition[] = slotPositions.map((pos) => ({
+      ...pos,
+      videoIndex: Math.floor(Math.random() * streams[pos.streamIndex].videos.length),
+      isSpinning: true,
+    }));
 
-    // Deduct spin cost
     setBalance(prev => prev - SPIN_COST);
     setIsSpinning(true);
     setWinResult(null);
     setSpinCount(prev => prev + 1);
+    setSlotPositions(finalPositions);
 
-    // Start all slots spinning
-    setSlotPositions(prev => prev.map(pos => ({ ...pos, isSpinning: true })));
-
-    // Stop each slot sequentially
+    // Stop each reel sequentially, revealing pre-computed position
     for (let i = 0; i < 3; i++) {
       setTimeout(() => {
         setSlotPositions(prev => {
-          const newPositions = [...prev];
-          const stream = streams[newPositions[i].streamIndex];
-          
-          // Random video from the stream
-          const randomVideoIndex = Math.floor(Math.random() * stream.videos.length);
-          
-          newPositions[i] = {
-            ...newPositions[i],
-            videoIndex: randomVideoIndex,
-            isSpinning: false
-          };
-          
-          return newPositions;
+          const next = [...prev];
+          next[i] = { ...finalPositions[i], isSpinning: false };
+          return next;
         });
-      }, SPIN_DURATION + (i * SLOT_DELAY));
+      }, SPIN_DURATION + i * SLOT_DELAY);
     }
 
-    // Check for wins after all slots stop
+    // Evaluate result after all reels stop
     setTimeout(() => {
       setIsSpinning(false);
-      const result = checkForMatches();
-      
+      const centerVideos = finalPositions.map(pos => streams[pos.streamIndex].videos[pos.videoIndex]);
+      const result = checkMatchesFromVideos(centerVideos);
       if (result) {
         setWinResult(result);
         setBalance(prev => prev + result.payout);
         setTotalWinnings(prev => prev + result.payout);
-        
-        toast({
-          title: "🎉 YOU WIN!",
-          description: result.message,
-          duration: 5000,
-        });
+        toast({ title: "🎉 YOU WIN!", description: result.message, duration: 5000 });
+        // Auto-dismiss win overlay after 5 s so next spin isn't blocked
+        setTimeout(() => setWinResult(null), 5000);
       }
-    }, SPIN_DURATION + (3 * SLOT_DELAY) + 500);
+    }, SPIN_DURATION + 3 * SLOT_DELAY + 300);
   };
 
   const handleAddFunds = () => {
@@ -329,36 +289,62 @@ export const SlotMachineViewer = ({ streams, onBack }: SlotMachineViewerProps) =
                     key={index}
                     className="relative w-full aspect-[9/16] sm:w-80 sm:h-[600px] rounded-lg sm:rounded-2xl overflow-hidden border-2 sm:border-4 border-gray-700 shadow-xl"
                   >
-                    {/* Spinning Effect Overlay */}
+                    {/* Slot Reel Spin Overlay — scrolls symbol tiles downward while spinning */}
                     {position.isSpinning && (
-                      <div className="absolute inset-0 z-40 bg-gradient-to-b from-transparent via-white/30 to-transparent animate-slide-down pointer-events-none" />
+                      <div className="absolute inset-0 z-40 overflow-hidden bg-black/95 pointer-events-none">
+                        {/* Scrolling drum strip (doubled for seamless loop) */}
+                        <div className="animate-reel-spin flex flex-col w-full">
+                          {reelStrip.map((sym, i) => (
+                            <div
+                              key={i}
+                              className="flex-shrink-0 flex flex-col items-center justify-center gap-1 border-b border-white/10"
+                              style={{ height: '80px' }}
+                            >
+                              <span
+                                className="text-white font-black text-lg sm:text-2xl tracking-widest px-3 py-1 rounded-full border border-white/20"
+                                style={{ backgroundColor: sym.color + '99' }}
+                              >
+                                ${sym.symbol}
+                              </span>
+                              <span className="text-white/60 text-[10px] sm:text-xs uppercase tracking-wider">{sym.location}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Depth fade — dark at top & bottom, clear center slit */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent via-40% to-black" />
+                        {/* Scan-line highlight over center */}
+                        <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-20 border-y-2 border-yellow-400/70 bg-yellow-400/5" />
+                      </div>
                     )}
-                    
-                    {/* Center Zone Highlight */}
-                    <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-24 sm:h-32 z-20 pointer-events-none">
-                      <div className="h-full border-l-2 border-r-2 border-yellow-400/30 bg-gradient-to-r from-transparent via-yellow-400/5 to-transparent" />
-                    </div>
-                    
+
+                    {/* Center Zone Highlight (visible when not spinning) */}
+                    {!position.isSpinning && (
+                      <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-24 sm:h-32 z-20 pointer-events-none">
+                        <div className="h-full border-l-2 border-r-2 border-yellow-400/30 bg-gradient-to-r from-transparent via-yellow-400/5 to-transparent" />
+                      </div>
+                    )}
+
                     {/* Slot Number Badge */}
                     <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-30 bg-gradient-to-br from-purple-600 to-pink-600 backdrop-blur-sm px-2 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-lg border border-white/30">
                       <span className="text-white font-bold text-xs sm:text-sm">REEL {index + 1}</span>
                     </div>
-                    
+
                     {/* Current Stream Tag */}
                     <div className="absolute top-1 right-1 sm:top-2 sm:right-2 z-30 bg-black/80 backdrop-blur-sm px-2 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-lg border border-white/20">
                       <span className="text-white font-bold text-xs sm:text-sm">#{stream.tag.name}</span>
                     </div>
 
                     {/* Video Stream */}
-                    <div className={`h-full transition-all duration-300 ${
-                      position.isSpinning ? 'blur-md scale-95' : 'blur-0 scale-100'
+                    <div className={`h-full transition-all duration-500 ${
+                      position.isSpinning ? 'opacity-0' : 'opacity-100'
                     }`}>
                       <StreamPlayer
                         stream={stream}
                         onVideoChange={() => {}}
                         onVideoEnd={() => {}}
-                        autoPlay={false}
+                        autoPlay={true}
                         className="h-full"
+                        streamCount={3}
                       />
                     </div>
                   </div>
@@ -373,7 +359,7 @@ export const SlotMachineViewer = ({ streams, onBack }: SlotMachineViewerProps) =
       <div className="absolute bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 z-50">
         <Button
           onClick={spinSlots}
-          disabled={isSpinning || balance < SPIN_COST || !isConnected}
+          disabled={isSpinning || balance < SPIN_COST}
           size="lg"
           className={`h-16 w-16 sm:h-24 sm:w-24 rounded-full text-lg sm:text-2xl font-bold shadow-2xl transition-all duration-300 ${
             isSpinning

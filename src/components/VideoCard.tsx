@@ -1,5 +1,5 @@
 import { VideoContent } from "@/types/video";
-import { TrendingUp, TrendingDown, Users, DollarSign, Flame, Award, Heart } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, DollarSign, Flame, Award, Heart, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useRef, useState } from "react";
 import { useDeviceCapabilities } from "@/hooks/useDeviceCapabilities";
@@ -8,9 +8,10 @@ interface VideoCardProps {
   video: VideoContent;
   onVideoEnd?: () => void;
   onVideoLoaded?: (videoId: string) => void;
+  compact?: boolean;
 }
 
-export const VideoCard = ({ video, onVideoEnd, onVideoLoaded }: VideoCardProps) => {
+export const VideoCard = ({ video, onVideoEnd, onVideoLoaded, compact = false }: VideoCardProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [quality, setQuality] = useState<'auto' | 'low'>('auto');
@@ -124,10 +125,46 @@ export const VideoCard = ({ video, onVideoEnd, onVideoLoaded }: VideoCardProps) 
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80" />
       </div>
 
-      {/* Content Overlay */}
+      {/* Floating location pin blurb */}
+      <a
+        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(video.location.name + ', ' + video.location.country)}${video.location.coordinates ? `&query=${video.location.coordinates.lat},${video.location.coordinates.lng}` : ''}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute left-3 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-md hover:bg-black/80 transition-colors rounded-full pl-2 pr-3 py-1 shadow-lg border border-white/15 group"
+        style={{ top: 'calc(50% - 90px)' }}
+      >
+        <MapPin className="w-3.5 h-3.5 text-red-400 flex-shrink-0 group-hover:text-red-300" />
+        <span className="text-white text-[11px] sm:text-xs font-semibold leading-tight max-w-[100px] sm:max-w-[140px] truncate">
+          {video.location.name}
+        </span>
+        <span className="text-white/50 text-[10px] hidden sm:inline">{video.location.country}</span>
+      </a>
+
+      {/* Compact overlay — split-screen mode */}
+      {compact ? (
+        <div className="absolute bottom-0 left-0 right-0 z-10 px-2 py-2 bg-gradient-to-t from-black/95 via-black/70 to-transparent">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-white text-[11px] font-semibold truncate flex-1">
+              {video.location.name}
+            </span>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="text-white text-[11px] font-bold">${video.token.symbol}</span>
+              <span className="text-[11px] font-bold text-white">${video.token.price.toFixed(2)}</span>
+              <span className={`text-[11px] font-bold ${isPositiveChange ? 'text-green-400' : 'text-red-400'}`}>
+                {isPositiveChange ? '+' : ''}{video.token.change24h.toFixed(1)}%
+              </span>
+              {isPositiveChange
+                ? <TrendingUp className="w-3 h-3 text-green-400 flex-shrink-0" />
+                : <TrendingDown className="w-3 h-3 text-red-400 flex-shrink-0" />
+              }
+            </div>
+          </div>
+        </div>
+      ) : (
+      /* Full overlay — single / classic feed */
       <div className="relative z-10 h-full flex flex-col justify-between p-3 sm:p-4 md:p-6 pb-24 sm:pb-28 md:pb-32">
         {/* Top Info */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 pr-14 sm:pr-16">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <img
               src={video.creator.avatar}
@@ -225,6 +262,7 @@ export const VideoCard = ({ video, onVideoEnd, onVideoLoaded }: VideoCardProps) 
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

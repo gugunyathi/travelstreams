@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { BasePay } from "./BasePay";
 import { useAccount } from "wagmi";
 import { useContentSubmission } from "@/hooks/useVideoActions";
+import { LocationPicker, PlaceResult } from "./LocationPicker";
 
 const CATEGORIES: VideoCategory[] = ['safety', 'fun', 'shopping', 'food', 'culture', 'nightlife', 'adventure', 'nature'];
 
@@ -18,10 +19,17 @@ export const ContentSubmissionModal = () => {
   const [embedUrl, setEmbedUrl] = useState("");
   const [location, setLocation] = useState("");
   const [country, setCountry] = useState("");
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
   const { isConnected, address } = useAccount();
   const [selectedCategories, setSelectedCategories] = useState<VideoCategory[]>([]);
   const { toast } = useToast();
   const { submitContent, loading } = useContentSubmission();
+
+  const handleLocationSelect = (place: PlaceResult) => {
+    setLocation(place.name);
+    setCountry(place.country);
+    setLocationCoords({ lat: place.lat, lng: place.lng });
+  };
 
   const toggleCategory = (category: VideoCategory) => {
     setSelectedCategories(prev =>
@@ -65,6 +73,7 @@ export const ContentSubmissionModal = () => {
     setEmbedUrl("");
     setLocation("");
     setCountry("");
+    setLocationCoords(null);
     setSelectedCategories([]);
     setOpen(false);
   };
@@ -97,28 +106,18 @@ export const ContentSubmissionModal = () => {
             <p className="text-xs text-muted-foreground">YouTube, TikTok, Instagram, or direct video URL</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="location">Location / City</Label>
-              <Input
-                id="location"
-                type="text"
-                placeholder="e.g. Nairobi"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                type="text"
-                placeholder="e.g. Kenya"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="location">Location</Label>
+            <LocationPicker
+              onSelect={handleLocationSelect}
+              placeholder="Search city or place…"
+            />
+            {location && (
+              <p className="text-xs text-muted-foreground">
+                📍 {location}{country ? `, ${country}` : ""}
+                {locationCoords ? ` · ${locationCoords.lat.toFixed(4)}, ${locationCoords.lng.toFixed(4)}` : ""}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

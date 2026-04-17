@@ -96,3 +96,15 @@ All colors MUST be HSL.
 .animate-slide-up {
   animation: slide-up 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Slot machine reel spin — seamless downward scroll */
+@keyframes reel-spin {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-50%); }
+}
+.animate-reel-spin {
+  animation: reel-spin 0.45s linear infinite;
+}
+.animate-reel-spin-slow {
+  animation: reel-spin 0.9s linear infinite;
+}

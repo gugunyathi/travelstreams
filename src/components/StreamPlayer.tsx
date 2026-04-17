@@ -10,6 +10,7 @@ interface StreamPlayerProps {
   onVideoEnd: (streamId: string) => void;
   autoPlay?: boolean;
   className?: string;
+  streamCount?: number;
 }
 
 export const StreamPlayer = ({ 
@@ -17,13 +18,20 @@ export const StreamPlayer = ({
   onVideoChange, 
   onVideoEnd,
   autoPlay = true,
-  className = ""
+  className = "",
+  streamCount = 1
 }: StreamPlayerProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const videoEndTimeoutRef = useRef<NodeJS.Timeout>();
   
   const currentVideo = stream.videos[currentIndex];
+
+  const formatViewers = (n: number) => {
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+    return n.toString();
+  };
 
   // Auto-advance to next video when current video ends
   useEffect(() => {
@@ -86,27 +94,38 @@ export const StreamPlayer = ({
 
   if (!currentVideo) return null;
 
+  const isCompact = streamCount > 1;
+  const isTriple = streamCount >= 3;
+
   return (
     <div className={`relative h-full w-full overflow-hidden ${className}`}>
       {/* Stream Tag Header */}
-      <div className="absolute top-0 left-0 right-0 z-30 p-2 sm:p-4 bg-gradient-to-b from-black/80 to-transparent">
-        <div className="flex items-center justify-between">
+      <div className="absolute top-0 left-0 right-0 z-30 bg-gradient-to-b from-black/80 to-transparent"
+        style={{ padding: isCompact ? '6px 8px' : undefined }}
+      >
+        <div className={`flex items-center justify-between ${isCompact ? 'gap-1' : 'p-2 sm:p-4 gap-2 sm:gap-4'}`}>
           <Badge 
-            className="text-sm sm:text-lg font-bold px-2 py-1 sm:px-4 sm:py-2 animate-pulse"
+            className={`font-bold ${isCompact ? 'text-[10px] px-1.5 py-0.5' : 'text-sm sm:text-lg px-2 py-1 sm:px-4 sm:py-2 animate-pulse'}`}
             style={{ backgroundColor: stream.tag.color }}
           >
             {stream.tag.displayName}
           </Badge>
           
-          <div className="flex items-center gap-2 sm:gap-4 text-white text-xs sm:text-sm">
-            <div className="flex items-center gap-1 bg-black/50 px-2 py-1 sm:px-3 sm:py-1 rounded-full">
-              <Users className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>{stream.activeViewers.toLocaleString()}</span>
+          <div className={`flex items-center text-white ${isCompact ? 'gap-1' : 'gap-2 sm:gap-4 text-xs sm:text-sm'}`}>
+            <div className={`flex items-center gap-1 bg-black/50 rounded-full ${isCompact ? 'px-1.5 py-0.5' : 'px-2 py-1 sm:px-3 sm:py-1'}`}>
+              <Users className={isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3 sm:w-4 sm:h-4'} />
+              <span className={isCompact ? 'text-[10px]' : ''}>
+                {isCompact ? formatViewers(stream.activeViewers) : stream.activeViewers.toLocaleString()}
+              </span>
             </div>
-            <div className="flex items-center gap-1 bg-black/50 px-2 py-1 sm:px-3 sm:py-1 rounded-full">
-              <Award className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400" />
-              <span>{stream.xpPool.toLocaleString()} XP</span>
-            </div>
+            {!isTriple && (
+              <div className={`flex items-center gap-1 bg-black/50 rounded-full ${isCompact ? 'px-1.5 py-0.5' : 'px-2 py-1 sm:px-3 sm:py-1'}`}>
+                <Award className={`text-yellow-400 ${isCompact ? 'w-2.5 h-2.5' : 'w-3 h-3 sm:w-4 sm:h-4'}`} />
+                <span className={isCompact ? 'text-[10px]' : ''}>
+                  {isCompact ? formatViewers(stream.xpPool) : stream.xpPool.toLocaleString()} XP
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -117,10 +136,11 @@ export const StreamPlayer = ({
           isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
         }`}
       >
-        <VideoCard video={currentVideo} />
+        <VideoCard video={currentVideo} compact={isCompact} />
       </div>
 
       {/* Stream Progress Indicator */}
+      {!isCompact && (
       <div className="absolute bottom-16 sm:bottom-20 left-0 right-0 z-20 px-2 sm:px-4">
         <div className="flex items-center gap-0.5 sm:gap-1">
           {stream.videos.map((_, idx) => (
@@ -140,9 +160,10 @@ export const StreamPlayer = ({
           ))}
         </div>
       </div>
+      )}
 
       {/* XP Earned Notification */}
-      {currentVideo.xpEarned > 0 && (
+      {!isCompact && currentVideo.xpEarned > 0 && (
         <div className="absolute top-16 sm:top-20 right-2 sm:right-4 z-30 animate-slide-up">
           <div className="bg-yellow-500/90 backdrop-blur-sm px-2 py-1 sm:px-4 sm:py-2 rounded-full flex items-center gap-1 sm:gap-2 shadow-lg">
             <Award className="w-3 h-3 sm:w-5 sm:h-5" />
